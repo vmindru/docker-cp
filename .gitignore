@@ -1,1 +1,2 @@
 *.pyc
+venv-docker-cp/*
