@@ -19,3 +19,6 @@ $ docker-cp --bufer-length=4 test:/etc/fedora-release .
 $ cat fedora-release
 Fedora release 25 (Twenty Five)
 ```
+## docker cp manual 
+
+https://docs.docker.com/engine/reference/commandline/cp/ 
