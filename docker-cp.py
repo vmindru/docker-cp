@@ -69,5 +69,8 @@ if __name__ == "__main__":
     else this can be included as used externaly"""
     dc = docker_cp()
     data = dc.copy()
+    # /tmp/temp2 will be changed to a var taken from input args and opts
+    # buffering value  will be changed to a var taken from input args and opts
+
     with file("/tmp/temp2", "w+", buffering=4) as f:
         f.write(data)
