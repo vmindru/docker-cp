@@ -9,28 +9,54 @@
 """
 
 import docker
+import json
+import tarfile
+from StringIO import StringIO
 
 
-class self():
-    client = docker.from_env()
-    containerid = ""
-    path = "/"
-    docker_version = client.version()['ApiVersion']
+def nice(object):
+    """ debug function """
+    print json.dumps(dir(object), indent=4)
 
 
-def legacy_copy():
-    """ not sure how portable this functions should be, will
-    assume it's ok to use class vars inside here"""
-    data = self.client.copy(self.contaienrid, self.path)
-    return data
+class docker_cp():
+    """ docker_cp
+    python implementation of docker cp command"""
+    def __init__(self):
+        self.client = docker.Client(base_url='unix://var/run/docker.sock')
+        self.containerid = "dca7e3edcf86"
+        self.path = "/root/file"
+        self.docker_version = self.client.version()['ApiVersion']
+        self.client.api_version
+
+    def copy(self):
+        """ copy data from container, perform API version check and decide if
+        we should use legacy copy function or current get_archive, returns raw
+        data """
+        if self.version_check(1.20) is True:
+            response_data, stat = self.client.get_archive(self.containerid,
+                                                          self.path)
+            raw_data = response_data.data
+            new_file = StringIO(raw_data)
+            tar = tarfile.open(mode="r", fileobj=new_file)
+            for member in tar.getmembers():
+                member = tar.extractfile(member)
+                """ obviously doing an unlimited read we will be in trouble
+                here if the file is biger then available freem MEM
+                """
+                return member.read()
+
+    def version_check(self, version):
+        """ compare version number against actualy version used, version is
+        taken from self.client.api_version, this being the curent backend
+        supported version"""
+        return True
 
 
-def copy():
-    print self.path
-    return
-
-
-def version_check():
-    return
-
-copy()
+if __name__ == "__main__":
+    """ make sure this code is ran only when docker_cp.py is called directly,
+    else this can be included as used externaly"""
+    dc = docker_cp()
+    data = dc.copy()
+    with file("/tmp/temp2", "w+", buffering=4) as f:
+        f.write(data)
