@@ -12,11 +12,22 @@ import docker
 import json
 import tarfile
 from StringIO import StringIO
+from optparse import OptionParser
 
 
 def nice(object):
     """ debug function """
     print json.dumps(dir(object), indent=4)
+
+
+class get_opts():
+
+    def __init__():
+        parser = OptionParser()
+        parser.add_option("-b", "--buffer-length",
+                          help="Specify buffer size, default 0",
+                          dest="buffersize")
+#          parser.add_options
 
 
 class docker_cp():
