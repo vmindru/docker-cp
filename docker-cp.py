@@ -1,4 +1,3 @@
-#!/usr/bin/python
 """ python implementation of docker cp command
 
     Variant 1, the easy way using existing docker api python libs , might the
@@ -10,10 +9,12 @@
 
 import docker
 import json
-import tarfile
+# import tarfile
 from sys import exit
-from StringIO import StringIO
+from sys import stderr
+# from StringIO import StringIO
 from optparse import OptionParser
+from time import sleep
 
 
 def nice(object):
@@ -55,10 +56,12 @@ class get_opts():
 class docker_cp():
     """ docker_cp
     python implementation of docker cp command"""
-    def __init__(self):
+    def __init__(self, source, dest, buffsize):
         self.client = docker.Client(base_url='unix://var/run/docker.sock')
-        self.containerid = "dca7e3edcf86"
-        self.path = "/root/file"
+        self.containerid = source[0]
+        self.target_path = source[1]
+        self.local_path = dest
+        self.buffsize = buffsize
         self.docker_version = self.client.version()['ApiVersion']
         self.client.api_version
 
@@ -72,16 +75,25 @@ class docker_cp():
             print "Not supported API version"
             exit(1)
         response_data, stat = self.client.get_archive(self.containerid,
-                                                      self.path)
-        raw_data = response_data.data
-        new_file = StringIO(raw_data)
-        tar = tarfile.open(mode="r", fileobj=new_file)
-        for member in tar.getmembers():
-            member = tar.extractfile(member)
-            """ obviously doing an unlimited read we will be in trouble
-            here if the file is biger then available freem MEM
-            """
-            return member.read()
+                                                      self.target_path)
+        buf = 0
+        with file(self.local_path, "w+", buffering=4) as f:
+            while buf != '':
+                buf = response_data.read(10)
+                f.write(buf)
+        """ not sure how to efficiently untar in memory without reding entire
+        tar, i guess i could find tar specifications read N amount of some sort
+        of metadata header size, that defined start,end and name of a member
+        and then extract data with seak and read similar to above.
+        Bellow is simple ugly method with untar in memory"""
+#        new_file = StringIO(response_data.data)
+#        tar = tarfile.open(mode="r", fileobj=new_file)
+#        for member in tar.getmembers():
+#            member = tar.extractfile(member)
+#            buf = '0'
+#            while buf != '':
+#                buf = member.read(4)
+#                print buf
 
     def version_check(self, version):
         """ compare version number against actualy version used, version is
@@ -94,3 +106,10 @@ if __name__ == "__main__":
     """ make sure this code is ran only when docker_cp.py is called directly,
     else this can be included as used externaly"""
     opts = get_opts()
+    print opts.options
+    print opts.options['buffersize']
+#    cp = docker_cp(opts.arg1, opts.arg2, buffsize)
+#    if opts.copy_from_cont is True:
+#        cp.copy_from()
+#    stderr.write('finished\n')
+#    sleep(10)
