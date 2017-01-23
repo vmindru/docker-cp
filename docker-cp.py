@@ -4,13 +4,12 @@ python implementation of docker cp command
 
 from docker import Client as docker_Client
 from json import dumps as json_dumps
-import tarfile
+# import tarfile
 from sys import exit
 from os import path
 from optparse import OptionParser
 # from StringIO import StringIO
-from time import sleep
-from io import BytesIO
+# from time import sleep
 
 
 def nice(object):
@@ -90,19 +89,20 @@ class docker_cp():
 #            while buf != '':
 #                buf = member.read(4)
 #                print buf
+    def block_read(self, file, blocksize):
+        while True:
+            block = file.read(blocksize)
+            if not block:
+                break
+            yield block
 
     def copy_to(self):
         print "going to copy from {} to container: {} path: {}"\
             .format(self.local_path, self.containerid, self.target_path)
         """ asuming we have an archive here """
-#        with file(self.local_path, mode="r", buffering=4) as f:
-#            self.client.put_archive(self.containerid, self.target_path,
-#                                    f.read())
-
-        f = open(self.local_path, "r", buffering=4)
-        nice(f)
-        #self.client.put_archive(self.containerid, self.target_path,
-        #                        data=
+        with file(self.local_path, mode="r", buffering=4) as f:
+            self.client.put_archive(self.containerid, self.target_path,
+                                    data=self.block_read(f, self.buffsize))
 
     def version_check(self, version):
         """ compare version number against actualy version used, version is
@@ -123,4 +123,3 @@ if __name__ == "__main__":
         cp = docker_cp(opts.arg2, opts.arg1, buffsize)
         cp.copy_to()
     print "Done"
-    sleep(5)
