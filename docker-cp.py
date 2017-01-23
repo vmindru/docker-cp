@@ -11,10 +11,11 @@ import docker
 import json
 # import tarfile
 from sys import exit
-from sys import stderr
+from os import path
+# from sys import stderr
 # from StringIO import StringIO
 from optparse import OptionParser
-from time import sleep
+# from time import sleep
 
 
 def nice(object):
@@ -60,7 +61,7 @@ class docker_cp():
         self.client = docker.Client(base_url='unix://var/run/docker.sock')
         self.containerid = source[0]
         self.target_path = source[1]
-        self.local_path = dest
+        self.local_path = dest[0]
         self.buffsize = buffsize
         self.docker_version = self.client.version()['ApiVersion']
         self.client.api_version
@@ -76,8 +77,12 @@ class docker_cp():
             exit(1)
         response_data, stat = self.client.get_archive(self.containerid,
                                                       self.target_path)
+        if path.isdir(self.local_path):
+            self.dest = self.local_path+stat['name']
+        else:
+            self.dest = self.local_path
         buf = 0
-        with file(self.local_path, "w+", buffering=4) as f:
+        with file(self.dest, "w+", buffering=self.buffsize) as f:
             while buf != '':
                 buf = response_data.read(10)
                 f.write(buf)
@@ -106,10 +111,7 @@ if __name__ == "__main__":
     """ make sure this code is ran only when docker_cp.py is called directly,
     else this can be included as used externaly"""
     opts = get_opts()
-    print opts.options
-    print opts.options['buffersize']
-#    cp = docker_cp(opts.arg1, opts.arg2, buffsize)
-#    if opts.copy_from_cont is True:
-#        cp.copy_from()
-#    stderr.write('finished\n')
-#    sleep(10)
+    buffsize = opts.options.buffersize
+    cp = docker_cp(opts.arg1, opts.arg2, buffsize)
+    if opts.copy_from_cont is True:
+        cp.copy_from()
