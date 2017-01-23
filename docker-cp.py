@@ -7,20 +7,19 @@
     version
 """
 
-import docker
-import json
+from docker import Client as docker_Client
+from json import dumps as json_dumps
 # import tarfile
 from sys import exit
 from os import path
-# from sys import stderr
-# from StringIO import StringIO
 from optparse import OptionParser
+# from StringIO import StringIO
 # from time import sleep
 
 
 def nice(object):
     """ debug function """
-    print json.dumps(dir(object), indent=4)
+    print json_dumps(dir(object), indent=4)
 
 
 class get_opts():
@@ -58,7 +57,9 @@ class docker_cp():
     """ docker_cp
     python implementation of docker cp command"""
     def __init__(self, source, dest, buffsize):
-        self.client = docker.Client(base_url='unix://var/run/docker.sock')
+        self.client = docker_Client(base_url='unix://var/run/docker.sock')
+        """ i know the bellow requirement for source and dest to be a list is
+         dirty and has t be corrected """
         self.containerid = source[0]
         self.target_path = source[1]
         self.local_path = dest[0]
@@ -70,11 +71,6 @@ class docker_cp():
         """ copy data from container, perform API version check and decide if
         we should use legacy copy function or current get_archive, returns raw
         data """
-        if self.version_check(1.20) is True:
-            pass
-        else:
-            print "Not supported API version"
-            exit(1)
         response_data, stat = self.client.get_archive(self.containerid,
                                                       self.target_path)
         if path.isdir(self.local_path):
@@ -100,6 +96,10 @@ class docker_cp():
 #                buf = member.read(4)
 #                print buf
 
+    def copy_to(self):
+        print "going to copy from {} to container: {} path: {}"\
+            .format(self.local_path, self.containerid, self.target_path)
+
     def version_check(self, version):
         """ compare version number against actualy version used, version is
         taken from self.client.api_version, this being the curent backend
@@ -112,6 +112,9 @@ if __name__ == "__main__":
     else this can be included as used externaly"""
     opts = get_opts()
     buffsize = opts.options.buffersize
-    cp = docker_cp(opts.arg1, opts.arg2, buffsize)
-    if opts.copy_from_cont is True:
+    if opts.copy_from_cont is True and opts.copy_to_cont is False:
+        cp = docker_cp(opts.arg1, opts.arg2, buffsize)
         cp.copy_from()
+    elif opts.copy_to_cont is True and opts.copy_from_cont is False:
+        cp = docker_cp(opts.arg2, opts.arg1, buffsize)
+        cp.copy_to()
