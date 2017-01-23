@@ -78,11 +78,15 @@ class docker_cp():
             self.dest = self.local_path+stat['name']+'.tar'
         else:
             self.dest = self.local_path+'.tar'
-        if self.create_archive is True:
+        if self.create_archive is False:
             tarfile.open(mode="r|",
                          fileobj=response_data).extractall(path=self.local_path)
-        elif self.create_archive is False:
-            return
+        elif self.create_archive is True:
+            buf = 0
+            with file(self.dest, "w+", buffering=self.buffsize) as f:
+                while buf != '':
+                    buf = response_data.read(self.buffsize)
+                    f.write(buf)
         else:
             print "error, invalide create_archive value"
             exit(1)
