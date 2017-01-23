@@ -18,7 +18,6 @@ def nice(object):
 
 
 class get_opts():
-
     def __init__(self):
         version = 1.0
         usage = "usage: %prog [options] source_path, container:dest_path"
