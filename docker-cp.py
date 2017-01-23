@@ -89,6 +89,7 @@ class docker_cp():
 #            while buf != '':
 #                buf = member.read(4)
 #                print buf
+
     def block_read(self, file, blocksize):
         while True:
             block = file.read(blocksize)
@@ -99,7 +100,6 @@ class docker_cp():
     def copy_to(self):
         print "going to copy from {} to container: {} path: {}"\
             .format(self.local_path, self.containerid, self.target_path)
-        """ asuming we have an archive here """
         with file(self.local_path, mode="r", buffering=4) as f:
             self.client.put_archive(self.containerid, self.target_path,
                                     data=self.block_read(f, self.buffsize))
