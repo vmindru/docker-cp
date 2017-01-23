@@ -74,7 +74,7 @@ class docker_cp():
         buf = 0
         with file(self.dest, "w+", buffering=self.buffsize) as f:
             while buf != '':
-                buf = response_data.read(10)
+                buf = response_data.read(self.buffsize)
                 f.write(buf)
         """ not sure how to efficiently untar in memory without reding entire
         tar, i guess i could find tar specifications read N amount of some sort
