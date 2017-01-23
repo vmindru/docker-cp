@@ -1,10 +1,5 @@
-""" python implementation of docker cp command
-
-    Variant 1, the easy way using existing docker api python libs , might the
-    only way I have time to do this
-
-    Decided to do both deprecated and current copy methods depending on API
-    version
+""" docker-cp
+python implementation of docker cp command
 """
 
 from docker import Client as docker_Client
