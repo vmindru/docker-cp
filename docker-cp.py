@@ -8,7 +8,7 @@ import tarfile
 from sys import exit
 from os import path
 from optparse import OptionParser
-# from StringIO import StringIO
+from StringIO import StringIO
 # from time import sleep
 
 
@@ -27,13 +27,14 @@ class get_opts():
                           default=0,
                           type=int,
                           dest="buffersize")
-        parser.add_option("-c", "--create-archive",
+        parser.add_option("-a", "--archive",
                           help="when specified together with copy from target"
-                          "container will create tar archive. Has no effect"
-                          "on copy from local path  to container",
+                          "container will create tar archive."
+                          "when specified together with copy to target "
+                          "container expects input tar archive file",
                           action="store_true",
                           default=False,
-                          dest="create_archive")
+                          dest="archive")
         (self.options, self.args) = parser.parse_args()
         if len(self.args) != 2:
             print "{}\nError:\n\nIncorrect arguments counts\n"\
@@ -67,7 +68,7 @@ class docker_cp():
         self.buffsize = buffsize
         self.docker_version = self.client.version()['ApiVersion']
         self.client.api_version
-        self.create_archive = archive
+        self.archive = archive
 
     def copy_from(self):
         """ copy data from container, perform API archive call,we will not
@@ -78,17 +79,17 @@ class docker_cp():
             self.dest = self.local_path+stat['name']+'.tar'
         else:
             self.dest = self.local_path+'.tar'
-        if self.create_archive is False:
+        if self.archive is False:
             tarfile.open(mode="r|",
                          fileobj=response_data).extractall(path=self.local_path)
-        elif self.create_archive is True:
+        elif self.archive is True:
             buf = 0
             with file(self.dest, "w+", buffering=self.buffsize) as f:
                 while buf != '':
                     buf = response_data.read(self.buffsize)
                     f.write(buf)
         else:
-            print "error, invalide create_archive value"
+            print "error, invalide archive value"
             exit(1)
 
     def block_read(self, file, blocksize):
@@ -98,17 +99,29 @@ class docker_cp():
                 break
             yield block
 
+    def tar_read(self, path):
+        f = StringIO()
+        tar = tarfile.open(mode="w|", fileobj=f)
+        tar.add(path)
+        return self.block_read(f, self.buffsize)
+
     def copy_to(self):
         """ I don't want atm to handle taring of files in memorry, version 0.1
         will asume we have already an archive"""
-        try:
-            tarfile.open(self.local_path, mode="r")
-        except:
-            print "Can not open {} archive".format(self.local_path)
-            exit(1)
-        with file(self.local_path, mode="r", buffering=4) as f:
+        if self.archive is True:
+            try:
+                tarfile.open(self.local_path, mode="r")
+            except:
+                print "Can not open {} archive".format(self.local_path)
+                exit(1)
+            with file(self.local_path, mode="r", buffering=4) as f:
+                self.client.put_archive(self.containerid, self.target_path,
+                                        data=self.block_read(f, self.buffsize))
+        elif self.archive is False:
             self.client.put_archive(self.containerid, self.target_path,
-                                    data=self.block_read(f, self.buffsize))
+                                    data=self.tar_read(self.local_path))
+        else:
+            print "error, invalide archive value"
 
     def version_check(self, version):
         """ compare version number against actualy version used, version is
@@ -122,10 +135,10 @@ if __name__ == "__main__":
     else this can be included as used externaly"""
     opts = get_opts()
     buffsize = opts.options.buffersize
-    create_archive = opts.options.create_archive
+    archive = opts.options.archive
     if opts.copy_from_cont is True and opts.copy_to_cont is False:
-        cp = docker_cp(opts.arg1, opts.arg2, buffsize, create_archive)
+        cp = docker_cp(opts.arg1, opts.arg2, buffsize, archive)
         cp.copy_from()
     elif opts.copy_to_cont is True and opts.copy_from_cont is False:
-        cp = docker_cp(opts.arg2, opts.arg1, buffsize)
+        cp = docker_cp(opts.arg2, opts.arg1, buffsize, archive)
         cp.copy_to()
