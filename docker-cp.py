@@ -8,7 +8,7 @@ import tarfile
 from sys import exit
 from os import path
 from optparse import OptionParser
-from StringIO import StringIO
+# from StringIO import StringIO
 # from time import sleep
 
 
@@ -70,10 +70,7 @@ class docker_cp():
             self.dest = self.local_path+stat['name']+'.tar'
         else:
             self.dest = self.local_path+'.tar'
-        # progress, buf, got_header, counter = 0, 0, False, 0
-        tarfile.open(mode="r|",
-                     fileobj=StringIO(response_data)
-                     ).extractall()
+        tarfile.open(mode="r|", fileobj=response_data).extractall()
 
         """ not sure how to efficiently untar in memory without reding entire
         tar, i guess i could find tar specifications read N amount of some sort
