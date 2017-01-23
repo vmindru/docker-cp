@@ -4,7 +4,7 @@ python implementation of docker cp command
 
 from docker import Client as docker_Client
 from json import dumps as json_dumps
-# import tarfile
+import tarfile
 from sys import exit
 from os import path
 from optparse import OptionParser
@@ -19,7 +19,7 @@ def nice(object):
 
 class get_opts():
     def __init__(self):
-        version = 1.0
+        version = 0.1
         usage = "usage: %prog [options] source_path, container:dest_path"
         parser = OptionParser(usage=usage, version=version)
         parser.add_option("-b", "--buffer-length",
@@ -62,15 +62,14 @@ class docker_cp():
         self.client.api_version
 
     def copy_from(self):
-        """ copy data from container, perform API version check and decide if
-        we should use legacy copy function or current get_archive, returns raw
-        data """
+        """ copy data from container, perform API archive call,we will not
+        handle archive untar in version 0.1 data """
         response_data, stat = self.client.get_archive(self.containerid,
                                                       self.target_path)
         if path.isdir(self.local_path):
-            self.dest = self.local_path+stat['name']
+            self.dest = self.local_path+stat['name']+'.tar'
         else:
-            self.dest = self.local_path
+            self.dest = self.local_path+'.tar'
         buf = 0
         with file(self.dest, "w+", buffering=self.buffsize) as f:
             while buf != '':
@@ -98,8 +97,13 @@ class docker_cp():
             yield block
 
     def copy_to(self):
-        print "going to copy from {} to container: {} path: {}"\
-            .format(self.local_path, self.containerid, self.target_path)
+        """ I don't want atm to handle taring of files in memorry, version 0.1
+        will asume we have already an archive"""
+        try:
+            tarfile.open(self.local_path, mode="r")
+        except:
+            print "Can not open {} archive".format(self.local_path)
+            exit(1)
         with file(self.local_path, mode="r", buffering=4) as f:
             self.client.put_archive(self.containerid, self.target_path,
                                     data=self.block_read(f, self.buffsize))
@@ -122,4 +126,3 @@ if __name__ == "__main__":
     elif opts.copy_to_cont is True and opts.copy_from_cont is False:
         cp = docker_cp(opts.arg2, opts.arg1, buffsize)
         cp.copy_to()
-    print "Done"
