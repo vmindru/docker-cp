@@ -92,9 +92,10 @@ class docker_cp():
             print "error, invalide archive value"
             exit(1)
 
-    def block_read(self, file, blocksize):
+    def block_read(self, file, buffsize):
+        """ yield data in required block size """
         while True:
-            block = file.read(blocksize)
+            block = file.read(buffsize)
             if not block:
                 break
             yield block
