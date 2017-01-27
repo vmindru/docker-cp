@@ -71,10 +71,10 @@ class docker_cp():
 
     def copy_files_from_container(self):
         """ copy data from container, optionally can save files as archive """
-        response_data, stat = self.client.get_archive(self.containerid,
-                                                      self.target_path)
+        response_data, response_stat = self.client.get_archive(self.containerid,
+                                                               self.target_path)
         if path.isdir(self.local_path):
-            self.dest = self.local_path+stat['name']+'.tar'
+            self.dest = self.local_path+response_stat['name']+'.tar'
         else:
             self.dest = self.local_path+'.tar'
         if self.archive is False:
@@ -100,11 +100,8 @@ class docker_cp():
                 break
             yield block
 
-    def tar_read(self, path):
-        f = StringIO()
-        tar = tarfile.open(mode="w|", fileobj=f)
-        tar.add(path)
-        return self.block_read(f, self.buffsize)
+    def tar_read(self, tarfile, files_path):
+        tar = tarfile.open(mode="w|", fileobj=tarfile)
 
     def copy_files_to_container(self):
         if self.archive is True:
@@ -117,6 +114,7 @@ class docker_cp():
                 self.client.put_archive(self.containerid, self.target_path,
                                         data=self.block_read(f, self.buffsize))
         elif self.archive is False:
+            print "debug1"
             self.client.put_archive(self.containerid, self.target_path,
                                     data=self.tar_read(self.local_path))
         else:
