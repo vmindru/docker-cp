@@ -4,16 +4,15 @@ python implementation of docker cp command
 
 from docker import Client as docker_Client
 from json import dumps as json_dumps
-import tarfile
 from sys import exit
 from os import path
 from optparse import OptionParser
 from StringIO import StringIO
-# from time import sleep
+import tarfile
 
 
 def nice(object):
-    """ debug function """
+    """ debug function, this will be removed envetually"""
     print json_dumps(dir(object), indent=4)
 
 
@@ -70,9 +69,8 @@ class docker_cp():
         self.client.api_version
         self.archive = archive
 
-    def copy_from(self):
-        """ copy data from container, perform API archive call,we will not
-        handle archive untar in version 0.1 data """
+    def copy_files_from_container(self):
+        """ copy data from container, optionally can save files as archive """
         response_data, stat = self.client.get_archive(self.containerid,
                                                       self.target_path)
         if path.isdir(self.local_path):
@@ -82,12 +80,14 @@ class docker_cp():
         if self.archive is False:
             tarfile.open(mode="r|",
                          fileobj=response_data).extractall(path=self.local_path)
+            return True
         elif self.archive is True:
             buf = 0
             with file(self.dest, "w+", buffering=self.buffsize) as f:
                 while buf != '':
                     buf = response_data.read(self.buffsize)
                     f.write(buf)
+                return True
         else:
             print "error, invalide archive value"
             exit(1)
@@ -105,9 +105,7 @@ class docker_cp():
         tar.add(path)
         return self.block_read(f, self.buffsize)
 
-    def copy_to(self):
-        """ I don't want atm to handle taring of files in memorry, version 0.1
-        will asume we have already an archive"""
+    def copy_files_to_container(self):
         if self.archive is True:
             try:
                 tarfile.open(self.local_path, mode="r")
@@ -138,7 +136,7 @@ if __name__ == "__main__":
     archive = opts.options.archive
     if opts.copy_from_cont is True and opts.copy_to_cont is False:
         cp = docker_cp(opts.arg1, opts.arg2, buffsize, archive)
-        cp.copy_from()
+        cp.copy_files_from_container()
     elif opts.copy_to_cont is True and opts.copy_from_cont is False:
         cp = docker_cp(opts.arg2, opts.arg1, buffsize, archive)
-        cp.copy_to()
+        cp.copy_files_to_container()
