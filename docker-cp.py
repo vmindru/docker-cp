@@ -6,8 +6,9 @@ from docker import Client as docker_Client
 from json import dumps as json_dumps
 from sys import exit
 from os import path
+from os import walk as walk_dir
 from optparse import OptionParser
-from StringIO import StringIO
+# from StringIO import StringIO
 import tarfile
 
 
@@ -100,8 +101,12 @@ class docker_cp():
                 break
             yield block
 
-    def tar_read(self, tarfile, files_path):
-        tar = tarfile.open(mode="w|", fileobj=tarfile)
+    def listdir():
+        for root, dirs, files in walk_dir("./.ropeproject", topdown=True):
+            for name in dirs:
+                yield path.join(root, name)
+            for name in files:
+                yield path.join(root, name)
 
     def copy_files_to_container(self):
         if self.archive is True:
@@ -114,9 +119,11 @@ class docker_cp():
                 self.client.put_archive(self.containerid, self.target_path,
                                         data=self.block_read(f, self.buffsize))
         elif self.archive is False:
-            print "debug1"
-            self.client.put_archive(self.containerid, self.target_path,
-                                    data=self.tar_read(self.local_path))
+            """ send files 1 at a time """
+            for file in self.listdir():
+                print file
+#            self.client.put_archive(self.containerid, self.target_path,
+#                                    data=self.tar_read(self.local_path))
         else:
             print "error, invalide archive value"
 
