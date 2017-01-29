@@ -6,9 +6,7 @@
 from docker import Client as docker_Client
 from json import dumps as json_dumps
 from sys import exit
-from sys import getsizeof
 from os import path
-from os import remove
 from os import walk as walk_dir
 from optparse import OptionParser
 from StringIO import StringIO
@@ -114,12 +112,24 @@ class docker_cp():
         else:
             yield list_path
 
-#    def create_tar(self, filein, fileout):
-#        tar = tarfile.open(mode="w|", fileobj=fileout, bufsize=1204)
-#        tar.add(name=filein)
-#        buf = 'start'
-#        tar.close
-#        return fileout
+    def stream_tar(self, path, buffsize):
+        archive = StringIO()
+        tar = tarfile.open(mode="w", fileobj=archive)
+        info = tar.gettarinfo(path)
+        tar.addfile(info)
+        archive.seek(0)
+        yield archive.read()
+        with open(path, mode="r", buffering=buffsize) as file:
+            while True:
+                block = file.read(buffsize)
+                if not block:
+                    break
+                yield block
+        tar.fileobj.seek(0)
+        tar.fileobj.truncate()
+        tar.close()
+        archive.seek(0)
+        yield archive.read()
 
     def copy_files_to_container(self):
         if self.archive is True:
@@ -133,18 +143,10 @@ class docker_cp():
                                         data=self.block_read(f, self.buffsize))
         elif self.archive is False:
             """ send files 1 at a time """
-            # with open(self.local_path+".tar",
-            #          mode="w+",
-            #          buffering=self.buffsize) as tar_archive:
-            tar_archive = StringIO()
-            tar = tarfile.open(mode="w", fileobj=tar_archive)
             for file in self.listdir(self.local_path):
-                tar.add(file)
-            tar.close()
-            tar_archive.seek(0)
-            self.client.put_archive(self.containerid, self.target_path,
-                                    data=self.block_read(tar_archive,
-                                                         self.buffsize))
+                self.client.put_archive(self.containerid, self.target_path,
+                                        data=self.stream_tar(file,
+                                                             self.buffsize))
 
         else:
             print "error, invalide archive value"
