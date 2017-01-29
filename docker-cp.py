@@ -1,26 +1,27 @@
 """ docker-cp
     python implementation of docker cp command
     TODO: verify file names, if passing odd bytes as input,
-    errors may happen """
+    errors may happen
+"""
 
-from docker import Client as docker_Client
-from json import dumps as json_dumps
 from sys import exit
 from os import path
 from os import walk as walk_dir
+from docker import Client as docker_Client
+from json import dumps as json_dumps
 from optparse import OptionParser
 from StringIO import StringIO
 import tarfile
 
 
-def nice(object):
+def __nice(object):
     """ debug function, this will be removed envetually"""
     print json_dumps(dir(object), indent=4)
 
 
 class get_opts():
     def __init__(self):
-        version = 0.1
+        version = 2.1
         usage = "usage: %prog [options] source_path, container:dest_path"
         parser = OptionParser(usage=usage, version=version)
         parser.add_option("-b", "--buffer-length",
@@ -95,7 +96,7 @@ class docker_cp():
             exit(1)
 
     def block_read(self, file, buffsize):
-        """ yield data in required block size """
+        """ yield data in required block size, file has to be a fileobject"""
         while True:
             block = file.read(buffsize)
             if not block:
@@ -103,6 +104,9 @@ class docker_cp():
             yield block
 
     def listdir(self, list_path):
+        """ return list of files and dirs in following order, first dirs second
+        files, if not listed in this order we might endup trying to untar a
+        file in a not existing location"""
         if path.isdir(list_path) is True:
             for root, dirs, files in walk_dir(list_path, topdown=True):
                 for name in dirs:
@@ -113,6 +117,9 @@ class docker_cp():
             yield list_path
 
     def stream_tar(self, path, buffsize):
+        """ stream tar archive, use tarfile to create hte header then send file
+        and at the end send footer 2x512 zeros as per tar specification,
+        footer is created with tar.close()"""
         archive = StringIO()
         tar = tarfile.open(mode="w", fileobj=archive)
         info = tar.gettarinfo(path)
@@ -150,12 +157,6 @@ class docker_cp():
 
         else:
             print "error, invalide archive value"
-
-    def version_check(self, version):
-        """ compare version number against actualy version used, version is
-        taken from self.client.api_version, this being the curent backend
-        supported version"""
-        return True
 
 
 if __name__ == "__main__":
