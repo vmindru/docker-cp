@@ -5,10 +5,12 @@ python implementation of docker cp command
 from docker import Client as docker_Client
 from json import dumps as json_dumps
 from sys import exit
+from sys import getsizeof
 from os import path
+from os import remove
 from os import walk as walk_dir
 from optparse import OptionParser
-# from StringIO import StringIO
+from StringIO import StringIO
 import tarfile
 
 
@@ -84,7 +86,7 @@ class docker_cp():
             return True
         elif self.archive is True:
             buf = 0
-            with file(self.dest, "w+", buffering=self.buffsize) as f:
+            with open(self.dest, "w+", buffering=self.buffsize) as f:
                 while buf != '':
                     buf = response_data.read(self.buffsize)
                     f.write(buf)
@@ -101,12 +103,22 @@ class docker_cp():
                 break
             yield block
 
-    def listdir():
-        for root, dirs, files in walk_dir("./.ropeproject", topdown=True):
-            for name in dirs:
-                yield path.join(root, name)
-            for name in files:
-                yield path.join(root, name)
+    def listdir(self, list_path):
+        if path.isdir(list_path) is True:
+            for root, dirs, files in walk_dir(list_path, topdown=True):
+                for name in dirs:
+                    yield path.join(root, name)
+                for name in files:
+                    yield path.join(root, name)
+        else:
+            yield list_path
+
+#    def create_tar(self, filein, fileout):
+#        tar = tarfile.open(mode="w|", fileobj=fileout, bufsize=1204)
+#        tar.add(name=filein)
+#        buf = 'start'
+#        tar.close
+#        return fileout
 
     def copy_files_to_container(self):
         if self.archive is True:
@@ -115,15 +127,24 @@ class docker_cp():
             except:
                 print "Can not open {} archive".format(self.local_path)
                 exit(1)
-            with file(self.local_path, mode="r", buffering=4) as f:
+            with open(self.local_path, mode="r", buffering=4) as f:
                 self.client.put_archive(self.containerid, self.target_path,
                                         data=self.block_read(f, self.buffsize))
         elif self.archive is False:
             """ send files 1 at a time """
-            for file in self.listdir():
-                print file
-#            self.client.put_archive(self.containerid, self.target_path,
-#                                    data=self.tar_read(self.local_path))
+            with open(self.local_path+".tar",
+                      mode="w+",
+                      buffering=self.buffsize) as tar_archive:
+                tar = tarfile.open(mode="w", fileobj=tar_archive)
+                for file in self.listdir(self.local_path):
+                    tar.add(file)
+                tar.close()
+                tar_archive.seek(0)
+                self.client.put_archive(self.containerid, self.target_path,
+                                        data=self.block_read(tar_archive,
+                                                             self.buffsize))
+            remove(self.local_path+".tar")
+
         else:
             print "error, invalide archive value"
 
