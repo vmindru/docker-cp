@@ -1,6 +1,7 @@
 """ docker-cp
-python implementation of docker cp command
-"""
+    python implementation of docker cp command
+    TODO: verify file names, if passing odd bytes as input,
+    errors may happen """
 
 from docker import Client as docker_Client
 from json import dumps as json_dumps
@@ -132,18 +133,18 @@ class docker_cp():
                                         data=self.block_read(f, self.buffsize))
         elif self.archive is False:
             """ send files 1 at a time """
-            with open(self.local_path+".tar",
-                      mode="w+",
-                      buffering=self.buffsize) as tar_archive:
-                tar = tarfile.open(mode="w", fileobj=tar_archive)
-                for file in self.listdir(self.local_path):
-                    tar.add(file)
-                tar.close()
-                tar_archive.seek(0)
-                self.client.put_archive(self.containerid, self.target_path,
-                                        data=self.block_read(tar_archive,
-                                                             self.buffsize))
-            remove(self.local_path+".tar")
+            # with open(self.local_path+".tar",
+            #          mode="w+",
+            #          buffering=self.buffsize) as tar_archive:
+            tar_archive = StringIO()
+            tar = tarfile.open(mode="w", fileobj=tar_archive)
+            for file in self.listdir(self.local_path):
+                tar.add(file)
+            tar.close()
+            tar_archive.seek(0)
+            self.client.put_archive(self.containerid, self.target_path,
+                                    data=self.block_read(tar_archive,
+                                                         self.buffsize))
 
         else:
             print "error, invalide archive value"
