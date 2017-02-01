@@ -10,13 +10,13 @@ from os import walk as walk_dir
 from docker import Client as docker_Client
 from json import dumps as json_dumps
 from optparse import OptionParser
-from StringIO import StringIO
+from io import StringIO
 import tarfile
 
 
-def __nice(object):
+def __nice__(object):
     """ debug function, this will be removed envetually"""
-    print json_dumps(dir(object), indent=4)
+    print(json_dumps(dir(object), indent=4))
 
 
 class get_opts():
@@ -39,8 +39,8 @@ class get_opts():
                           dest="archive")
         (self.options, self.args) = parser.parse_args()
         if len(self.args) != 2:
-            print "{}\nError:\n\nIncorrect arguments counts\n"\
-                  .format(parser.print_help())
+            print("{}\nError:\n\nIncorrect arguments counts\n"
+                  .format(parser.print_help()))
             exit(1)
         """ we have to make sure our arguments are correct,
         also figure out the intention to copy  from or to container"""
@@ -52,8 +52,8 @@ class get_opts():
             self.copy_from_cont = False
             self.copy_to_cont = True
         else:
-            print "{}\nError:\n\nIncorrect arguments\n{}"\
-                  .format(parser.print_help(), self.args)
+            print("{}\nError:\n\nIncorrect arguments\n{}"
+                  .format(parser.print_help(), self.args))
             exit(1)
 
 
@@ -92,12 +92,14 @@ class docker_cp():
                     f.write(buf)
                 return True
         else:
-            print "error, invalide archive value"
+            print("error, invalide archive value")
             exit(1)
 
     def block_read(self, file, buffsize):
         """ yield data in required block size, file has to be a fileobject"""
         while True:
+            # __nice__(file)
+#            __nice__(file.encoding)
             block = file.read(buffsize)
             if not block:
                 break
@@ -126,7 +128,7 @@ class docker_cp():
         tar.addfile(info)
         archive.seek(0)
         yield archive.read()
-        with open(path, mode="r", buffering=buffsize) as file:
+        with open(path, mode="rb", buffering=buffsize) as file:
             while True:
                 block = file.read(buffsize)
                 if not block:
@@ -141,11 +143,11 @@ class docker_cp():
     def copy_files_to_container(self):
         if self.archive is True:
             try:
-                tarfile.open(self.local_path, mode="r")
+                tarfile.open(self.local_path, mode="rb")
             except:
-                print "Can not open {} archive".format(self.local_path)
+                print("Can not open {} archive".format(self.local_path))
                 exit(1)
-            with open(self.local_path, mode="r", buffering=4) as f:
+            with open(self.local_path, mode="rb", buffering=self.buffsize) as f:
                 self.client.put_archive(self.containerid, self.target_path,
                                         data=self.block_read(f, self.buffsize))
         elif self.archive is False:
@@ -156,7 +158,7 @@ class docker_cp():
                                                              self.buffsize))
 
         else:
-            print "error, invalide archive value"
+            print("error, invalide archive value")
 
 
 if __name__ == "__main__":
