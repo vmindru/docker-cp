@@ -1,5 +1,6 @@
 *.pyc
 venv-docker-cp/*
+venv-docker-cp-py3/*
 .ropeproject
 file
-file.tar
+*.tar
