@@ -124,16 +124,19 @@ class docker_cp():
         footer is created with tar.close()"""
         archive = BytesIO()
         tar = tarfile.open(mode="w", fileobj=archive)
-        tarinfo = tar.gettarinfo(path)
-        tar.addfile(tarinfo)
-        archive.seek(0)
-        yield archive.read()
-        with open(path, mode="rb", buffering=buffsize) as file:
-            while True:
-                block = file.read(buffsize)
-                if not block:
-                    break
-                yield block
+        for file in self.listdir(path):
+            tar.fileobj.seek(0)
+            tar.fileobj.truncate()
+            tarinfo = tar.gettarinfo(path)
+            tar.addfile(tarinfo)
+            archive.seek(0)
+            yield archive.read()
+            with open(path, mode="rb", buffering=buffsize) as file:
+                while True:
+                    block = file.read(buffsize)
+                    if not block:
+                        break
+                    yield block
         tar.fileobj.seek(0)
         tar.fileobj.truncate()
         tar.close()
@@ -152,10 +155,9 @@ class docker_cp():
                                         data=self.block_read(f, self.buffsize))
         elif self.archive is False:
             """ send files 1 at a time """
-            for file in self.listdir(self.local_path):
-                self.client.put_archive(self.containerid, self.target_path,
-                                        data=self.stream_tar(file,
-                                                             self.buffsize))
+            self.client.put_archive(self.containerid, self.target_path,
+                                    data=self.stream_tar(self.local_path,
+                                                         self.buffsize))
 
         else:
             print("error, invalide archive value")
