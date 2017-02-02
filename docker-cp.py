@@ -10,7 +10,7 @@ from os import walk as walk_dir
 from docker import Client as docker_Client
 from json import dumps as json_dumps
 from optparse import OptionParser
-from io import StringIO
+from io import BytesIO
 import tarfile
 
 
@@ -122,10 +122,10 @@ class docker_cp():
         """ stream tar archive, use tarfile to create hte header then send file
         and at the end send footer 2x512 zeros as per tar specification,
         footer is created with tar.close()"""
-        archive = StringIO()
+        archive = BytesIO()
         tar = tarfile.open(mode="w", fileobj=archive)
-        info = tar.gettarinfo(path)
-        tar.addfile(info)
+        tarinfo = tar.gettarinfo(path)
+        tar.addfile(tarinfo)
         archive.seek(0)
         yield archive.read()
         with open(path, mode="rb", buffering=buffsize) as file:
