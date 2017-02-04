@@ -1,7 +1,6 @@
 """ docker-cp
-    python implementation of docker cp command
-    TODO: verify file names, if passing odd bytes as input,
-    errors may happen
+    python implementation of docker cp command, this should be possible
+    to use both as a library or as a command
 """
 
 from sys import exit
@@ -21,7 +20,8 @@ def __nice__(object):
     print(json_dumps(dir(object), indent=4))
 
 
-class get_opts():
+class __get_opts__():
+    """ private class, used only when this is ran as a command """
     def __init__(self):
         version = 2.2
         usage = "usage: %prog [options] source_path, container:dest_path"
