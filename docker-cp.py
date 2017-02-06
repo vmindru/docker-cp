@@ -200,12 +200,19 @@ class docker_cp():
                                    format(self.local_path))
 
         else:
-            print("error, invalide archive value")
+            self.__debug_msg__("error, invalide {} archive value".
+                               format(self.archive))
 
     def __debug_msg__(self, message, dest="stderr"):
         """ debug function, will print more data when self.debug is True"""
         if self.debug is True:
-            print(message, file=eval(dest))
+            if dest == "stderr":
+                print(message, file=stderr)
+            elif dest == "sdout":
+                print(message, file=stdout)
+            else:
+                self.__debug_msg__("invalid dest value {}, valid stdout|stderr".
+                                   format(dest))
             return True
         else:
             return True
@@ -214,7 +221,7 @@ class docker_cp():
 if __name__ == "__main__":
     """ make sure this code is ran only when docker_cp.py is called directly,
     else this can be included as used externaly"""
-    opts = get_opts()
+    opts = __get_opts__()
     buffsize = opts.options.buffersize
     archive = opts.options.archive
     debug = opts.options.debug
