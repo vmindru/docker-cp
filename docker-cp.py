@@ -1,10 +1,11 @@
 """ docker-cp
-    python implementation of docker cp command
-    TODO: verify file names, if passing odd bytes as input,
-    errors may happen
+    python implementation of docker cp command, this should be possible
+    to use both as a library or as a command
 """
 
 from sys import exit
+from sys import stderr
+from sys import stdout
 from os import path
 from os import walk as walk_dir
 from docker import Client as docker_Client
@@ -19,9 +20,10 @@ def __nice__(object):
     print(json_dumps(dir(object), indent=4))
 
 
-class get_opts():
+class __get_opts__():
+    """ private class, used only when this is ran as a command """
     def __init__(self):
-        version = 2.1
+        version = 2.2
         usage = "usage: %prog [options] source_path, container:dest_path"
         parser = OptionParser(usage=usage, version=version)
         parser.add_option("-b", "--buffer-length",
@@ -37,6 +39,12 @@ class get_opts():
                           action="store_true",
                           default=False,
                           dest="archive")
+        parser.add_option("-v",
+                          "--verbose",
+                          help="enable verbose mode",
+                          default=False,
+                          dest="debug",
+                          action="store_true")
         (self.options, self.args) = parser.parse_args()
         if len(self.args) != 2:
             print("{}\nError:\n\nIncorrect arguments counts\n"
@@ -60,7 +68,7 @@ class get_opts():
 class docker_cp():
     """ docker_cp
     python implementation of docker cp command"""
-    def __init__(self, source, dest, buffsize, archive=False):
+    def __init__(self, source, dest, buffsize, archive=False, debug=False):
         self.client = docker_Client(base_url='unix://var/run/docker.sock')
         """ i know the bellow requirement for source and dest to be a list is
          dirty and has t be corrected """
@@ -71,6 +79,7 @@ class docker_cp():
         self.docker_version = self.client.version()['ApiVersion']
         self.client.api_version
         self.archive = archive
+        self.debug = debug
 
     def copy_files_from_container(self):
         """ copy data from container, optionally can save files as archive """
@@ -85,9 +94,9 @@ class docker_cp():
                          fileobj=response_data).extractall(path=self.local_path)
             return True
         elif self.archive is True:
-            buf = 0
-            with open(self.dest, "w+", buffering=self.buffsize) as f:
-                while buf != '':
+            buf = 'null'
+            with open(self.dest, "wb+", buffering=self.buffsize) as f:
+                while len(buf) != 0:
                     buf = response_data.read(self.buffsize)
                     f.write(buf)
                 return True
@@ -99,7 +108,6 @@ class docker_cp():
         """ yield data in required block size, file has to be a fileobject"""
         while True:
             # __nice__(file)
-#            __nice__(file.encoding)
             block = file.read(buffsize)
             if not block:
                 break
@@ -118,35 +126,64 @@ class docker_cp():
         else:
             yield list_path
 
-    def stream_tar(self, path, buffsize):
+    def stream_tar(self, local_path, buffsize):
         """ stream tar archive, use tarfile to create hte header then send file
         and at the end send footer 2x512 zeros as per tar specification,
         footer is created with tar.close()"""
+        NUL = b"\0"      # THIS IS STANDARD TAR NULLBYTE
+        BLOCKSIZE = 512  # THIS IS STANDARD TAR BLOCKSIZE
+        self.__debug_msg__("creating new archive")
         archive = BytesIO()
         tar = tarfile.open(mode="w", fileobj=archive)
-        for file in self.listdir(path):
+        for file in self.listdir(local_path):
             tar.fileobj.seek(0)
             tar.fileobj.truncate()
-            tarinfo = tar.gettarinfo(path)
-            tar.addfile(tarinfo)
-            archive.seek(0)
-            yield archive.read()
-            with open(path, mode="rb", buffering=buffsize) as file:
-                while True:
-                    block = file.read(buffsize)
-                    if not block:
-                        break
-                    yield block
+            if path.isfile(file):
+                self.__debug_msg__("adding {}".format(file))
+                tarinfo = tar.gettarinfo(file)
+                tar.addfile(tarinfo)
+                archive.seek(0)
+                yield archive.read()
+                with open(file, mode="rb", buffering=buffsize) as file:
+                    while True:
+                        block = file.read(buffsize)
+                        if not block:
+                            break
+                        yield block
+                """ the tar archive contains of 512 blocks, when last chunk
+                is different from 512 bytes we need to add null bytes to respect
+                the standard """
+                blocks, remainder = divmod(tarinfo.size, buffsize)
+                if remainder > 0:
+                    final_block = (NUL * (BLOCKSIZE - remainder))
+                    yield final_block
+            elif path.isdir(file):
+                tarinfo = tar.gettarinfo(file)
+                tar.addfile(tarinfo)
+                archive.seek(0)
+                yield archive.read()
+            else:
+                self.__debug_msg__("unsuported file type {}".format(file))
+                exit(1)
         tar.fileobj.seek(0)
         tar.fileobj.truncate()
+        self.__debug_msg__("closing archive")
         tar.close()
         archive.seek(0)
         yield archive.read()
 
     def copy_files_to_container(self):
+        """ copy files from local host to container """
+        if path.exists(self.local_path) is True:
+            pass
+        else:
+            self.__debug_msg__("ERROR: {} does not exist".
+                               format(self.local_path))
+            exit(1)
+
         if self.archive is True:
             try:
-                tarfile.open(self.local_path, mode="rb")
+                tarfile.open(self.local_path)
             except:
                 print("Can not open {} archive".format(self.local_path))
                 exit(1)
@@ -154,13 +191,24 @@ class docker_cp():
                 self.client.put_archive(self.containerid, self.target_path,
                                         data=self.block_read(f, self.buffsize))
         elif self.archive is False:
-            """ send files 1 at a time """
-            self.client.put_archive(self.containerid, self.target_path,
-                                    data=self.stream_tar(self.local_path,
-                                                         self.buffsize))
+            try:
+                self.client.put_archive(self.containerid, self.target_path,
+                                        data=self.stream_tar(self.local_path,
+                                                             self.buffsize))
+            except:
+                self.__debug_msg__("upload of {} failed".
+                                   format(self.local_path))
 
         else:
             print("error, invalide archive value")
+
+    def __debug_msg__(self, message, dest="stderr"):
+        """ debug function, will print more data when self.debug is True"""
+        if self.debug is True:
+            print(message, file=eval(dest))
+            return True
+        else:
+            return True
 
 
 if __name__ == "__main__":
@@ -169,9 +217,10 @@ if __name__ == "__main__":
     opts = get_opts()
     buffsize = opts.options.buffersize
     archive = opts.options.archive
+    debug = opts.options.debug
     if opts.copy_from_cont is True and opts.copy_to_cont is False:
-        cp = docker_cp(opts.arg1, opts.arg2, buffsize, archive)
+        cp = docker_cp(opts.arg1, opts.arg2, buffsize, archive, debug)
         cp.copy_files_from_container()
     elif opts.copy_to_cont is True and opts.copy_from_cont is False:
-        cp = docker_cp(opts.arg2, opts.arg1, buffsize, archive)
+        cp = docker_cp(opts.arg2, opts.arg1, buffsize, archive, debug)
         cp.copy_files_to_container()
