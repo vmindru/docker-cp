@@ -173,6 +173,7 @@ class docker_cp():
         yield archive.read()
 
     def copy_files_to_container(self):
+        """ copy files from local host to container """
         if path.exists(self.local_path) is True:
             pass
         else:
@@ -202,6 +203,7 @@ class docker_cp():
             print("error, invalide archive value")
 
     def __debug_msg__(self, message, dest="stderr"):
+        """ debug function, will print more data when self.debug is True"""
         if self.debug is True:
             print(message, file=eval(dest))
             return True
